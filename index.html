@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>區體系活動點名系統</title>
+  <style>
+    :root {
+      --bg-main: #F7F3EE;
+      --bg-card: #FFFFFF;
+      --bg-header: #EFE6DD;
+      --primary: #8C6D53;
+      --primary-hover: #735740;
+      --accent: #C8A98E;
+      --text-main: #3E332A;
+      --text-muted: #7D6E63;
+      --border: #E2D6C8;
+      --success: #5B8266;
+      --danger: #B85D5D;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans TC", sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      padding: 16px;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 820px;
+      margin: 0 auto;
+      background: var(--bg-card);
+      border-radius: 14px;
+      box-shadow: 0 4px 20px rgba(62, 51, 42, 0.06);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    /* 頂部控制列 */
+    .header {
+      background-color: var(--bg-header);
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .title-group h1 {
+      font-size: 1.35rem;
+      color: var(--text-main);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      font-size: 0.8rem;
+      padding: 2px 10px;
+      border-radius: 20px;
+      background-color: #E6EFE8;
+      color: var(--success);
+      font-weight: 500;
+    }
+
+    .status-badge.saving {
+      background-color: #FDF3E7;
+      color: #B5792E;
+    }
+
+    .event-bar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    select {
+      flex: 1;
+      min-width: 220px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #FFF;
+      color: var(--text-main);
+      font-size: 0.95rem;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+    }
+
+    select:focus {
+      border-color: var(--primary);
+    }
+
+    .btn {
+      padding: 9px 14px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-outline {
+      background: #FFF;
+      border: 1px solid var(--primary);
+      color: var(--primary);
+    }
+
+    .btn-outline:hover {
+      background: var(--primary);
+      color: #FFF;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #FFF;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-danger-text {
+      background: none;
+      border: none;
+      color: var(--danger);
+      font-size: 0.85rem;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    /* 統計摘要列 */
+    .summary-bar {
+      display: flex;
+      justify-content: space-around;
+      padding: 14px 20px;
+      background-color: #FAF7F4;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.92rem;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .summary-item span {
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--primary);
+      margin-left: 4px;
+    }
+
+    /* 點名表格 */
+    .table-wrapper {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: center;
+    }
+
+    th, td {
+      padding: 14px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    th {
+      background-color: #FDFBF9;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.9rem;
+      white-space: nowrap;
+    }
+
+    th:first-child, td:first-child {
+      text-align: left;
+      padding-left: 24px;
+      font-weight: 600;
+      width: 140px;
+    }
+
+    tr:hover {
+      background-color: #FAF6F2;
+    }
+
+    tr.attended-row {
+      background-color: #FBF9F6;
+    }
+
+    /* 自訂大尺寸勾選框 */
+    .checkbox-wrapper {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .checkbox-wrapper input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 26px;
+      height: 26px;
+      border: 2px solid var(--accent);
+      border-radius: 6px;
+      background-color: #FFF;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s ease;
+    }
+
+    .checkbox-wrapper input[type="checkbox"]:checked {
+      background-color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .checkbox-wrapper input[type="checkbox"]:checked::after {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 3px;
+      width: 6px;
+      height: 13px;
+      border: solid white;
+      border-width: 0 2.5px 2.5px 0;
+      transform: rotate(45deg);
+    }
+
+    /* 攜帶來賓數字框 */
+    .guest-input {
+      width: 64px;
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      text-align: center;
+      font-size: 0.92rem;
+      color: var(--text-main);
+      background: #FFF;
+    }
+
+    .guest-input:focus {
+      border-color: var(--primary);
+      outline: none;
+    }
+
+    /* 備註欄 */
+    .note-input {
+      width: 100%;
+      min-width: 130px;
+      padding: 6px 10px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      background: #F7F3EE;
+      color: var(--text-main);
+      font-size: 0.88rem;
+      transition: all 0.2s;
+    }
+
+    .note-input:focus {
+      background: #FFF;
+      border-color: var(--primary);
+      outline: none;
+    }
+
+    /* 頁尾與後台入口 */
+    .footer {
+      padding: 14px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      background-color: #FAF7F4;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .admin-trigger {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      text-decoration: underline;
+      cursor: pointer;
+      font-size: 0.82rem;
+    }
+
+    .admin-trigger:hover {
+      color: var(--primary);
+    }
+
+    /* 彈窗通用樣式 */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(62, 51, 42, 0.55);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    .modal {
+      background: #FFF;
+      border-radius: 12px;
+      width: 100%;
+      max-width: 440px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal h2 {
+      font-size: 1.15rem;
+      margin-bottom: 8px;
+      color: var(--text-main);
+    }
+
+    .modal p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text-main);
+    }
+
+    .modal input[type="password"],
+    .modal input[type="text"],
+    .modal input[type="date"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    .modal input:focus,
+    .modal textarea:focus {
+      border-color: var(--primary);
+    }
+
+    .modal textarea {
+      width: 100%;
+      height: 190px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      resize: vertical;
+      outline: none;
+    }
+
+    .error-msg {
+      color: var(--danger);
+      font-size: 0.82rem;
+      margin-top: 6px;
+      display: none;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    @media print {
+      .btn, .footer, .note-input { border: none; }
+      .btn, .admin-trigger { display: none; }
+      select { border: none; appearance: none; font-size: 1.1rem; padding: 0; }
+      body { background: #FFF; padding: 0; }
+      .container { box-shadow: none; border: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <div class="header-top">
+      <div class="title-group">
+        <h1>區體系活動點名系統</h1>
+      </div>
+      <div id="syncStatus" class="status-badge">雲端已同步</div>
+    </div>
+    <div class="event-bar">
+      <select id="eventSelector"></select>
+      <button class="btn btn-primary" onclick="requestAdminAction('newEvent')">＋ 新增活動</button>
+      <button class="btn btn-outline" onclick="window.print()">列印名單</button>
+    </div>
+  </div>
+
+  <div class="summary-bar">
+    <div class="summary-item">團隊人數：<span id="totalCount">0</span></div>
+    <div class="summary-item">實際出席：<span id="attendedCount">0</span></div>
+    <div class="summary-item">攜帶來賓：<span id="guestTotalCount">0</span></div>
+  </div>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th>成員姓名</th>
+          <th>出席點名</th>
+          <th>帶人/來賓</th>
+          <th>備註（請假原因/來賓姓名）</th>
+        </tr>
+      </thead>
+      <tbody id="attendanceBody">
+        <tr><td colspan="4" style="text-align:center; padding: 30px; color: var(--text-muted);">資料載入中...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    <span>名單與場次建立已鎖定，僅限管理員變更</span>
+    <button class="admin-trigger" onclick="requestAdminAction('adminSettings')">管理員設定（名單／密碼）</button>
+  </div>
+</div>
+
+<!-- 管理員密碼驗證視窗 (方式 A：統一攔截敏感操作) -->
+<div class="modal-overlay" id="authModal">
+  <div class="modal" style="max-width: 360px;">
+    <h2>管理員身分驗證</h2>
+    <p id="authModalDesc">請輸入後台管理密碼以繼續操作。</p>
+    <div class="form-group">
+      <input type="password" id="adminPwdInput" placeholder="請輸入管理密碼..." onkeyup="if(event.key==='Enter') verifyAdminPwd()">
+      <div id="pwdErrorMsg" class="error-msg">密碼錯誤，請重新輸入。</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeAuthModal()">取消</button>
+      <button class="btn btn-primary" onclick="verifyAdminPwd()">確認解鎖</button>
+    </div>
+  </div>
+</div>
+
+<!-- 新增活動場次視窗 -->
+<div class="modal-overlay" id="newEventModal">
+  <div class="modal" style="max-width: 380px;">
+    <h2>建立新活動場次</h2>
+    <p>建立後將自動切換至該場次的空白點名表。</p>
+    <div class="form-group">
+      <label for="newEventDate">活動日期</label>
+      <input type="date" id="newEventDate">
+    </div>
+    <div class="form-group">
+      <label for="newEventTitle">活動名稱</label>
+      <input type="text" id="newEventTitle" placeholder="例如：區部招募創說會、早會大會" onkeyup="if(event.key==='Enter') createNewEvent()">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeNewEventModal()">取消</button>
+      <button class="btn btn-primary" onclick="createNewEvent()">建立場次</button>
+    </div>
+  </div>
+</div>
+
+<!-- 後台管理視窗 (方式 A) -->
+<div class="modal-overlay" id="adminModal">
+  <div class="modal">
+    <h2>後台管理：固定成員名單與密碼</h2>
+    <p>請輸入團隊成員姓名，<strong>每行一位成員</strong>。儲存後將即時同步至所有人的前台畫面。</p>
+    <div class="form-group">
+      <label for="memberListInput">團隊固定成員名單</label>
+      <textarea id="memberListInput" placeholder="王小明&#10;陳大華&#10;林美玲"></textarea>
+    </div>
+    <div class="form-group">
+      <label for="newAdminPwdInput">後台管理密碼設定</label>
+      <input type="text" id="newAdminPwdInput" placeholder="設定後台密碼">
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border);">
+      <button class="btn-danger-text" onclick="deleteCurrentEvent()">刪除目前選取的活動場次</button>
+      <div class="modal-actions" style="margin-top:0;">
+        <button class="btn btn-outline" onclick="closeAdminModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveAdminSettings()">儲存設定</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // ==========================================
+  // 請替換為你的 Firebase 專案設定 (與 weekly-control 相同即可)
+  // ==========================================
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
+
+  // 預設初始設定（首次啟動時會自動寫入雲端）
+  const DEFAULT_MEMBERS = [
+    "成員 01", "成員 02", "成員 03", "成員 04", "成員 05",
+    "成員 06", "成員 07", "成員 08", "成員 09", "成員 10",
+    "成員 11", "成員 12", "成員 13", "成員 14", "成員 15"
+  ];
+  const DEFAULT_ADMIN_PWD = "8888";
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  let currentMembers = [];
+  let currentAdminPwd = DEFAULT_ADMIN_PWD;
+  let eventList = [];
+  let selectedEventId = "";
+  let currentRecord = {};
+  let unsubscribeRecord = null;
+  let noteTimeout = null;
+  let pendingAdminAction = ""; // 記錄驗證通過後要開啟的視窗 ('newEvent' 或 'adminSettings')
+
+  const eventSelector = document.getElementById('eventSelector');
+  const syncStatus = document.getElementById('syncStatus');
+
+  function getTodayString() {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - offset).toISOString().split('T')[0];
+  }
+
+  function setSyncState(isSaving) {
+    if (isSaving) {
+      syncStatus.textContent = "儲存中...";
+      syncStatus.classList.add("saving");
+    } else {
+      syncStatus.textContent = "雲端已同步";
+      syncStatus.classList.remove("saving");
+    }
+  }
+
+  // 監聽後台設定：固定成員名單、密碼、活動場次清單
+  const configDocRef = doc(db, "event_config", "system_settings");
+  onSnapshot(configDocRef, async (docSnap) => {
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      currentMembers = Array.isArray(data.members) ? data.members : DEFAULT_MEMBERS;
+      currentAdminPwd = data.adminPassword || DEFAULT_ADMIN_PWD;
+      eventList = Array.isArray(data.events) ? data.events : [];
+    } else {
+      const initialEvent = {
+        id: "evt_" + Date.now(),
+        date: getTodayString(),
+        title: "區體系活動點名"
+      };
+      currentMembers = DEFAULT_MEMBERS;
+      currentAdminPwd = DEFAULT_ADMIN_PWD;
+      eventList = [initialEvent];
+      await setDoc(configDocRef, {
+        members: DEFAULT_MEMBERS,
+        adminPassword: DEFAULT_ADMIN_PWD,
+        events: eventList
+      });
+    }
+
+    renderEventDropdown();
+    renderTable();
+  });
+
+  // 渲染活動場次下拉選單（依日期新到舊排序）
+  function renderEventDropdown() {
+    if (eventList.length === 0) {
+      eventSelector.innerHTML = '<option value="">尚無活動場次，請由管理員新增</option>';
+      selectedEventId = "";
+      return;
+    }
+
+    const sortedEvents = [...eventList].sort((a, b) => b.date.localeCompare(a.date));
+    
+    if (!selectedEventId || !sortedEvents.some(e => e.id === selectedEventId)) {
+      selectedEventId = sortedEvents[0].id;
+      subscribeEventRecord(selectedEventId);
+    }
+
+    eventSelector.innerHTML = sortedEvents.map(evt => 
+      `<option value="${evt.id}" ${evt.id === selectedEventId ? 'selected' : ''}>${escapeHtml(evt.date)} ｜ ${escapeHtml(evt.title)}</option>`
+    ).join('');
+  }
+
+  // 監聽指定活動場次的點名紀錄
+  function subscribeEventRecord(eventId) {
+    if (unsubscribeRecord) unsubscribeRecord();
+    if (!eventId) {
+      currentRecord = {};
+      renderTable();
+      return;
+    }
+
+    const recordDocRef = doc(db, "event_records", eventId);
+    unsubscribeRecord = onSnapshot(recordDocRef, (docSnap) => {
+      currentRecord = docSnap.exists() ? docSnap.data() : {};
+      renderTable();
+    });
+  }
+
+  // 渲染點名表格與統計
+  function renderTable() {
+    const tbody = document.getElementById('attendanceBody');
+    if (!selectedEventId) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px; color: var(--text-muted);">目前無活動場次，請由管理員點擊上方「＋ 新增活動」建立。</td></tr>';
+      return;
+    }
+    if (currentMembers.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px;">尚未設定成員名單，請由管理員新增。</td></tr>';
+      return;
+    }
+
+    let html = '';
+    let attendedTotal = 0;
+    let guestTotal = 0;
+
+    currentMembers.forEach((name) => {
+      const userData = currentRecord[name] || { attended: false, guests: 0, note: '' };
+      if (userData.attended) attendedTotal++;
+      guestTotal += Number(userData.guests) || 0;
+
+      html += `
+        <tr class="${userData.attended ? 'attended-row' : ''}">
+          <td>${escapeHtml(name)}</td>
+          <td>
+            <label class="checkbox-wrapper">
+              <input type="checkbox" ${userData.attended ? 'checked' : ''} onchange="window.toggleAttend('${escapeAttr(name)}', this.checked)">
+            </label>
+          </td>
+          <td>
+            <input type="number" min="0" max="99" class="guest-input" value="${Number(userData.guests) || 0}" onchange="window.updateGuests('${escapeAttr(name)}', this.value)">
+          </td>
+          <td>
+            <input type="text" class="note-input" placeholder="輸入備註..." value="${escapeAttr(userData.note || '')}" oninput="window.updateNote('${escapeAttr(name)}', this.value)">
+          </td>
+        </tr>
+      `;
+    });
+
+    tbody.innerHTML = html;
+    document.getElementById('totalCount').textContent = currentMembers.length;
+    document.getElementById('attendedCount').textContent = attendedTotal;
+    document.getElementById('guestTotalCount').textContent = guestTotal;
+  }
+
+  // 勾選出席
+  window.toggleAttend = async (memberName, isChecked) => {
+    if (!selectedEventId) return;
+    setSyncState(true);
+    const recordDocRef = doc(db, "event_records", selectedEventId);
+    const existingUser = currentRecord[memberName] || { attended: false, guests: 0, note: '' };
+    const updatedUser = { ...existingUser, attended: isChecked };
+
+    await setDoc(recordDocRef, { [memberName]: updatedUser }, { merge: true });
+    setSyncState(false);
+  };
+
+  // 更新攜帶來賓數
+  window.updateGuests = async (memberName, val) => {
+    if (!selectedEventId) return;
+    setSyncState(true);
+    const count = Math.max(0, parseInt(val, 10) || 0);
+    const recordDocRef = doc(db, "event_records", selectedEventId);
+    const existingUser = currentRecord[memberName] || { attended: false, guests: 0, note: '' };
+    const updatedUser = { ...existingUser, guests: count };
+
+    await setDoc(recordDocRef, { [memberName]: updatedUser }, { merge: true });
+    setSyncState(false);
+  };
+
+  // 更新備註（防抖動 500ms）
+  window.updateNote = (memberName, text) => {
+    if (!selectedEventId) return;
+    setSyncState(true);
+    clearTimeout(noteTimeout);
+    noteTimeout = setTimeout(async () => {
+      const recordDocRef = doc(db, "event_records", selectedEventId);
+      const existingUser = currentRecord[memberName] || { attended: false, guests: 0, note: '' };
+      const updatedUser = { ...existingUser, note: text };
+
+      await setDoc(recordDocRef, { [memberName]: updatedUser }, { merge: true });
+      setSyncState(false);
+    }, 500);
+  };
+
+  // 切換活動下拉選單
+  eventSelector.addEventListener('change', (e) => {
+    selectedEventId = e.target.value;
+    subscribeEventRecord(selectedEventId);
+  });
+
+  // 統一管理員驗證入口
+  window.requestAdminAction = (actionType) => {
+    pendingAdminAction = actionType;
+    const descEl = document.getElementById('authModalDesc');
+    if (actionType === 'newEvent') {
+      descEl.textContent = "請輸入管理員密碼以建立新的活動場次。";
+    } else {
+      descEl.textContent = "請輸入管理員密碼以編輯成員名單與系統設定。";
+    }
+
+    document.getElementById('adminPwdInput').value = '';
+    document.getElementById('pwdErrorMsg').style.display = 'none';
+    document.getElementById('authModal').classList.add('active');
+    setTimeout(() => document.getElementById('adminPwdInput').focus(), 100);
+  };
+
+  window.closeAuthModal = () => {
+    document.getElementById('authModal').classList.remove('active');
+  };
+
+  window.verifyAdminPwd = () => {
+    const inputPwd = document.getElementById('adminPwdInput').value;
+    if (inputPwd === currentAdminPwd) {
+      closeAuthModal();
+      if (pendingAdminAction === 'newEvent') {
+        openNewEventModal();
+      } else if (pendingAdminAction === 'adminSettings') {
+        openAdminModal();
+      }
+    } else {
+      document.getElementById('pwdErrorMsg').style.display = 'block';
+    }
+  };
+
+  // 新增活動場次彈窗
+  function openNewEventModal() {
+    document.getElementById('newEventDate').value = getTodayString();
+    document.getElementById('newEventTitle').value = '';
+    document.getElementById('newEventModal').classList.add('active');
+    setTimeout(() => document.getElementById('newEventTitle').focus(), 100);
+  }
+
+  window.closeNewEventModal = () => {
+    document.getElementById('newEventModal').classList.remove('active');
+  };
+
+  window.createNewEvent = async () => {
+    const dateVal = document.getElementById('newEventDate').value;
+    const titleVal = document.getElementById('newEventTitle').value.trim();
+
+    if (!dateVal || !titleVal) {
+      alert("請填寫活動日期與活動名稱！");
+      return;
+    }
+
+    const newEvent = {
+      id: "evt_" + Date.now(),
+      date: dateVal,
+      title: titleVal
+    };
+
+    const updatedEvents = [newEvent, ...eventList];
+    selectedEventId = newEvent.id;
+
+    setSyncState(true);
+    await setDoc(configDocRef, { events: updatedEvents }, { merge: true });
+    subscribeEventRecord(selectedEventId);
+    setSyncState(false);
+    closeNewEventModal();
+  };
+
+  // 後台管理視窗
+  function openAdminModal() {
+    document.getElementById('memberListInput').value = currentMembers.join('\n');
+    document.getElementById('newAdminPwdInput').value = currentAdminPwd;
+    document.getElementById('adminModal').classList.add('active');
+  }
+
+  window.closeAdminModal = () => {
+    document.getElementById('adminModal').classList.remove('active');
+  };
+
+  window.saveAdminSettings = async () => {
+    const rawText = document.getElementById('memberListInput').value;
+    const newMembers = rawText.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+    const newPwd = document.getElementById('newAdminPwdInput').value.trim();
+    
+    if (newMembers.length === 0) {
+      alert("成員名單不可為空！");
+      return;
+    }
+    if (!newPwd) {
+      alert("管理密碼不可為空！");
+      return;
+    }
+
+    setSyncState(true);
+    await setDoc(configDocRef, {
+      members: newMembers,
+      adminPassword: newPwd
+    }, { merge: true });
+    setSyncState(false);
+    closeAdminModal();
+  };
+
+  // 後台刪除誤建的活動場次
+  window.deleteCurrentEvent = async () => {
+    if (!selectedEventId) return;
+    const target = eventList.find(e => e.id === selectedEventId);
+    if (!confirm(`確定要刪除「${target.date} ${target.title}」的活動與點名紀錄嗎？此動作無法復原。`)) return;
+
+    setSyncState(true);
+    const updatedEvents = eventList.filter(e => e.id !== selectedEventId);
+    await deleteDoc(doc(db, "event_records", selectedEventId));
+    selectedEventId = "";
+    await setDoc(configDocRef, { events: updatedEvents }, { merge: true });
+    setSyncState(false);
+    closeAdminModal();
+  };
+
+  function escapeHtml(str) {
+    return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+  }
+  function escapeAttr(str) {
+    return str.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+</script>
+</body>
+</html>
