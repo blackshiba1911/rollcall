@@ -33,7 +33,64 @@
       line-height: 1.5;
     }
 
+    /* 第一道防線：全螢幕團隊通行碼鎖定畫面 */
+    .lock-screen {
+      position: fixed;
+      inset: 0;
+      background-color: var(--bg-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      padding: 20px;
+    }
+
+    .lock-screen.hidden {
+      display: none;
+    }
+
+    .lock-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 380px;
+      box-shadow: 0 8px 30px rgba(62, 51, 42, 0.08);
+      text-align: center;
+    }
+
+    .lock-card h2 {
+      font-size: 1.3rem;
+      margin-bottom: 8px;
+      color: var(--text-main);
+    }
+
+    .lock-card p {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .lock-card input[type="password"] {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 1rem;
+      text-align: center;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+      outline: none;
+    }
+
+    .lock-card input[type="password"]:focus {
+      border-color: var(--primary);
+    }
+
+    /* 主系統容器 */
     .container {
+      display: none;
       max-width: 820px;
       margin: 0 auto;
       background: var(--bg-card);
@@ -41,6 +98,10 @@
       box-shadow: 0 4px 20px rgba(62, 51, 42, 0.06);
       overflow: hidden;
       border: 1px solid var(--border);
+    }
+
+    .container.unlocked {
+      display: block;
     }
 
     /* 頂部控制列 */
@@ -115,6 +176,12 @@
       cursor: pointer;
       transition: all 0.2s;
       white-space: nowrap;
+    }
+
+    .btn-block {
+      width: 100%;
+      padding: 12px;
+      font-size: 1rem;
     }
 
     .btn-outline {
@@ -373,7 +440,7 @@
 
     .modal textarea {
       width: 100%;
-      height: 190px;
+      height: 170px;
       padding: 12px;
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -398,8 +465,7 @@
     }
 
     @media print {
-      .btn, .footer, .note-input { border: none; }
-      .btn, .admin-trigger { display: none; }
+      .btn, .footer, .note-input, .lock-screen { display: none !important; }
       select { border: none; appearance: none; font-size: 1.1rem; padding: 0; }
       body { background: #FFF; padding: 0; }
       .container { box-shadow: none; border: none; }
@@ -408,7 +474,19 @@
 </head>
 <body>
 
-<div class="container">
+<!-- 第一道防線：團隊通行碼驗證畫面（預設 1234） -->
+<div class="lock-screen" id="lockScreen">
+  <div class="lock-card">
+    <h2>區體系活動點名系統</h2>
+    <p>請輸入團隊通行碼以進入點名系統</p>
+    <input type="password" id="teamPassInput" placeholder="請輸入通行碼" onkeyup="if(event.key==='Enter') unlockSystem()">
+    <div id="teamPassError" class="error-msg" style="margin-bottom: 10px;">通行碼錯誤，請重新確認。</div>
+    <button class="btn btn-primary btn-block" onclick="unlockSystem()">進入系統</button>
+  </div>
+</div>
+
+<!-- 主系統畫面 -->
+<div class="container" id="mainContainer">
   <div class="header">
     <div class="header-top">
       <div class="title-group">
@@ -446,12 +524,15 @@
   </div>
 
   <div class="footer">
-    <span>名單與場次建立已鎖定，僅限管理員變更</span>
-    <button class="admin-trigger" onclick="requestAdminAction('adminSettings')">管理員設定（名單／密碼）</button>
+    <span>名單與場次已鎖定，僅限管理員變更</span>
+    <div>
+      <button class="admin-trigger" style="margin-right: 12px;" onclick="lockSystem()">鎖定登出</button>
+      <button class="admin-trigger" onclick="requestAdminAction('adminSettings')">管理員設定（名單／密碼）</button>
+    </div>
   </div>
 </div>
 
-<!-- 管理員密碼驗證視窗 (方式 A：統一攔截敏感操作) -->
+<!-- 第二道防線：管理員密碼驗證視窗（預設 8888） -->
 <div class="modal-overlay" id="authModal">
   <div class="modal" style="max-width: 360px;">
     <h2>管理員身分驗證</h2>
@@ -487,18 +568,22 @@
   </div>
 </div>
 
-<!-- 後台管理視窗 (方式 A) -->
+<!-- 後台管理視窗 -->
 <div class="modal-overlay" id="adminModal">
   <div class="modal">
-    <h2>後台管理：固定成員名單與密碼</h2>
-    <p>請輸入團隊成員姓名，<strong>每行一位成員</strong>。儲存後將即時同步至所有人的前台畫面。</p>
+    <h2>後台管理：名單與雙密碼設定</h2>
+    <p>請輸入團隊成員姓名，<strong>每行一位成員</strong>。儲存後即時同步至雲端。</p>
     <div class="form-group">
       <label for="memberListInput">團隊固定成員名單</label>
       <textarea id="memberListInput" placeholder="王小明&#10;陳大華&#10;林美玲"></textarea>
     </div>
     <div class="form-group">
-      <label for="newAdminPwdInput">後台管理密碼設定</label>
-      <input type="text" id="newAdminPwdInput" placeholder="設定後台密碼">
+      <label for="newTeamPassInput">團隊通行碼（夥伴進網頁用）</label>
+      <input type="text" id="newTeamPassInput" placeholder="設定團隊通行碼">
+    </div>
+    <div class="form-group">
+      <label for="newAdminPwdInput">管理員密碼（改名單與開活動用）</label>
+      <input type="text" id="newAdminPwdInput" placeholder="設定管理員密碼">
     </div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border);">
       <button class="btn-danger-text" onclick="deleteCurrentEvent()">刪除目前選取的活動場次</button>
@@ -513,39 +598,43 @@
 <!-- Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  // ==========================================
-  // 請替換為你的 Firebase 專案設定 (與 weekly-control 相同即可)
-  // ==========================================
+  // 已填入你的 weekly-control 專案設定
   const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-    projectId: "YOUR_PROJECT_ID",
-    storageBucket: "YOUR_PROJECT_ID.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyAHX8iMmUQHf699jC3nk4BOl8dvy1CQCL0",
+    authDomain: "weekly-control.firebaseapp.com",
+    projectId: "weekly-control",
+    storageBucket: "weekly-control.firebasestorage.app",
+    messagingSenderId: "67075158059",
+    appId: "1:67075158059:web:b21942581c02ab3444fa6e",
+    measurementId: "G-F643PCMW63"
   };
 
-  // 預設初始設定（首次啟動時會自動寫入雲端）
+  // 預設雙密碼（首次啟動自動寫入雲端，之後可在網頁後台直接修改）
+  const DEFAULT_TEAM_PASS = "1234";  // 夥伴進網頁的團隊通行碼
+  const DEFAULT_ADMIN_PWD = "8888";  // 管理員改名單/開活動的密碼
   const DEFAULT_MEMBERS = [
     "成員 01", "成員 02", "成員 03", "成員 04", "成員 05",
     "成員 06", "成員 07", "成員 08", "成員 09", "成員 10",
     "成員 11", "成員 12", "成員 13", "成員 14", "成員 15"
   ];
-  const DEFAULT_ADMIN_PWD = "8888";
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
+  const configDocRef = doc(db, "event_config", "system_settings");
 
   let currentMembers = [];
+  let currentTeamPass = DEFAULT_TEAM_PASS;
   let currentAdminPwd = DEFAULT_ADMIN_PWD;
   let eventList = [];
   let selectedEventId = "";
   let currentRecord = {};
+  let unsubscribeConfig = null;
   let unsubscribeRecord = null;
   let noteTimeout = null;
-  let pendingAdminAction = ""; // 記錄驗證通過後要開啟的視窗 ('newEvent' 或 'adminSettings')
+  let pendingAdminAction = "";
+  let isUnlocked = false;
 
   const eventSelector = document.getElementById('eventSelector');
   const syncStatus = document.getElementById('syncStatus');
@@ -566,35 +655,83 @@
     }
   }
 
-  // 監聽後台設定：固定成員名單、密碼、活動場次清單
-  const configDocRef = doc(db, "event_config", "system_settings");
-  onSnapshot(configDocRef, async (docSnap) => {
-    if (docSnap.exists()) {
+  // 驗證第一道防線：團隊通行碼
+  async function checkAccess(passToVerify, isAutoCheck = false) {
+    try {
+      const docSnap = await getDoc(configDocRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        currentTeamPass = data.teamPassword || DEFAULT_TEAM_PASS;
+        currentAdminPwd = data.adminPassword || DEFAULT_ADMIN_PWD;
+      } else {
+        const initialEvent = {
+          id: "evt_" + Date.now(),
+          date: getTodayString(),
+          title: "區體系活動點名"
+        };
+        await setDoc(configDocRef, {
+          members: DEFAULT_MEMBERS,
+          teamPassword: DEFAULT_TEAM_PASS,
+          adminPassword: DEFAULT_ADMIN_PWD,
+          events: [initialEvent]
+        });
+        currentTeamPass = DEFAULT_TEAM_PASS;
+        currentAdminPwd = DEFAULT_ADMIN_PWD;
+      }
+
+      if (passToVerify === currentTeamPass) {
+        localStorage.setItem("event_checkin_pass", passToVerify);
+        isUnlocked = true;
+        document.getElementById('lockScreen').classList.add('hidden');
+        document.getElementById('mainContainer').classList.add('unlocked');
+        startSystemListeners();
+      } else {
+        localStorage.removeItem("event_checkin_pass");
+        if (!isAutoCheck) {
+          document.getElementById('teamPassError').style.display = 'block';
+        }
+      }
+    } catch (err) {
+      alert("連線至雲端資料庫失敗，請確認 Firebase Firestore 規則是否已發布。");
+    }
+  }
+
+  window.unlockSystem = () => {
+    const inputVal = document.getElementById('teamPassInput').value.trim();
+    document.getElementById('teamPassError').style.display = 'none';
+    checkAccess(inputVal, false);
+  };
+
+  window.lockSystem = () => {
+    localStorage.removeItem("event_checkin_pass");
+    location.reload();
+  };
+
+  const savedPass = localStorage.getItem("event_checkin_pass");
+  if (savedPass) {
+    checkAccess(savedPass, true);
+  }
+
+  function startSystemListeners() {
+    if (unsubscribeConfig) unsubscribeConfig();
+    unsubscribeConfig = onSnapshot(configDocRef, (docSnap) => {
+      if (!docSnap.exists()) return;
       const data = docSnap.data();
       currentMembers = Array.isArray(data.members) ? data.members : DEFAULT_MEMBERS;
+      currentTeamPass = data.teamPassword || DEFAULT_TEAM_PASS;
       currentAdminPwd = data.adminPassword || DEFAULT_ADMIN_PWD;
       eventList = Array.isArray(data.events) ? data.events : [];
-    } else {
-      const initialEvent = {
-        id: "evt_" + Date.now(),
-        date: getTodayString(),
-        title: "區體系活動點名"
-      };
-      currentMembers = DEFAULT_MEMBERS;
-      currentAdminPwd = DEFAULT_ADMIN_PWD;
-      eventList = [initialEvent];
-      await setDoc(configDocRef, {
-        members: DEFAULT_MEMBERS,
-        adminPassword: DEFAULT_ADMIN_PWD,
-        events: eventList
-      });
-    }
 
-    renderEventDropdown();
-    renderTable();
-  });
+      if (localStorage.getItem("event_checkin_pass") !== currentTeamPass) {
+        lockSystem();
+        return;
+      }
 
-  // 渲染活動場次下拉選單（依日期新到舊排序）
+      renderEventDropdown();
+      renderTable();
+    });
+  }
+
   function renderEventDropdown() {
     if (eventList.length === 0) {
       eventSelector.innerHTML = '<option value="">尚無活動場次，請由管理員新增</option>';
@@ -603,7 +740,6 @@
     }
 
     const sortedEvents = [...eventList].sort((a, b) => b.date.localeCompare(a.date));
-    
     if (!selectedEventId || !sortedEvents.some(e => e.id === selectedEventId)) {
       selectedEventId = sortedEvents[0].id;
       subscribeEventRecord(selectedEventId);
@@ -614,7 +750,6 @@
     ).join('');
   }
 
-  // 監聽指定活動場次的點名紀錄
   function subscribeEventRecord(eventId) {
     if (unsubscribeRecord) unsubscribeRecord();
     if (!eventId) {
@@ -630,7 +765,6 @@
     });
   }
 
-  // 渲染點名表格與統計
   function renderTable() {
     const tbody = document.getElementById('attendanceBody');
     if (!selectedEventId) {
@@ -675,9 +809,8 @@
     document.getElementById('guestTotalCount').textContent = guestTotal;
   }
 
-  // 勾選出席
   window.toggleAttend = async (memberName, isChecked) => {
-    if (!selectedEventId) return;
+    if (!selectedEventId || !isUnlocked) return;
     setSyncState(true);
     const recordDocRef = doc(db, "event_records", selectedEventId);
     const existingUser = currentRecord[memberName] || { attended: false, guests: 0, note: '' };
@@ -687,9 +820,8 @@
     setSyncState(false);
   };
 
-  // 更新攜帶來賓數
   window.updateGuests = async (memberName, val) => {
-    if (!selectedEventId) return;
+    if (!selectedEventId || !isUnlocked) return;
     setSyncState(true);
     const count = Math.max(0, parseInt(val, 10) || 0);
     const recordDocRef = doc(db, "event_records", selectedEventId);
@@ -700,9 +832,8 @@
     setSyncState(false);
   };
 
-  // 更新備註（防抖動 500ms）
   window.updateNote = (memberName, text) => {
-    if (!selectedEventId) return;
+    if (!selectedEventId || !isUnlocked) return;
     setSyncState(true);
     clearTimeout(noteTimeout);
     noteTimeout = setTimeout(async () => {
@@ -715,20 +846,18 @@
     }, 500);
   };
 
-  // 切換活動下拉選單
   eventSelector.addEventListener('change', (e) => {
     selectedEventId = e.target.value;
     subscribeEventRecord(selectedEventId);
   });
 
-  // 統一管理員驗證入口
   window.requestAdminAction = (actionType) => {
     pendingAdminAction = actionType;
     const descEl = document.getElementById('authModalDesc');
     if (actionType === 'newEvent') {
-      descEl.textContent = "請輸入管理員密碼以建立新的活動場次。";
+      descEl.textContent = "請輸入管理員密碼（預設 8888）以建立新活動。";
     } else {
-      descEl.textContent = "請輸入管理員密碼以編輯成員名單與系統設定。";
+      descEl.textContent = "請輸入管理員密碼（預設 8888）以編輯名單與密碼。";
     }
 
     document.getElementById('adminPwdInput').value = '';
@@ -755,7 +884,6 @@
     }
   };
 
-  // 新增活動場次彈窗
   function openNewEventModal() {
     document.getElementById('newEventDate').value = getTodayString();
     document.getElementById('newEventTitle').value = '';
@@ -792,9 +920,9 @@
     closeNewEventModal();
   };
 
-  // 後台管理視窗
   function openAdminModal() {
     document.getElementById('memberListInput').value = currentMembers.join('\n');
+    document.getElementById('newTeamPassInput').value = currentTeamPass;
     document.getElementById('newAdminPwdInput').value = currentAdminPwd;
     document.getElementById('adminModal').classList.add('active');
   }
@@ -806,27 +934,29 @@
   window.saveAdminSettings = async () => {
     const rawText = document.getElementById('memberListInput').value;
     const newMembers = rawText.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+    const newTeamPass = document.getElementById('newTeamPassInput').value.trim();
     const newPwd = document.getElementById('newAdminPwdInput').value.trim();
     
     if (newMembers.length === 0) {
       alert("成員名單不可為空！");
       return;
     }
-    if (!newPwd) {
-      alert("管理密碼不可為空！");
+    if (!newTeamPass || !newPwd) {
+      alert("通行碼與管理密碼皆不可為空！");
       return;
     }
 
     setSyncState(true);
     await setDoc(configDocRef, {
       members: newMembers,
+      teamPassword: newTeamPass,
       adminPassword: newPwd
     }, { merge: true });
+    localStorage.setItem("event_checkin_pass", newTeamPass);
     setSyncState(false);
     closeAdminModal();
   };
 
-  // 後台刪除誤建的活動場次
   window.deleteCurrentEvent = async () => {
     if (!selectedEventId) return;
     const target = eventList.find(e => e.id === selectedEventId);
